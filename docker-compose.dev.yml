@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: gophkeeper-postgres-dev
+    environment:
+      POSTGRES_DB: gophkeeper
+      POSTGRES_USER: gophkeeper
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - gophkeeper-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gophkeeper -d gophkeeper"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # GophKeeper Server (development with hot reload)
+  server-dev:
+    image: golang:1.23-alpine
+    container_name: gophkeeper-server-dev
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=gophkeeper
+      - DB_PASSWORD=password
+      - DB_NAME=gophkeeper
+      - JWT_SECRET=supersecretkey
+      - ENCRYPTION_KEY=32-byte-long-encryption-key-for-aes
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gophkeeper-dev-network
+    command: >
+      sh -c "
+        apk add --no-cache git &&
+        go mod download &&
+        go run ./cmd/server -db-host=postgres -db-port=5432 -db-user=gophkeeper -db-password=password -db-name=gophkeeper
+      "
+    restart: unless-stopped
+
+  # Database Admin (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: gophkeeper-pgadmin-dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gophkeeper.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - gophkeeper-dev-network
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
+  go_mod_cache:
+    driver: local
+
+networks:
+  gophkeeper-dev-network:
+    driver: bridge

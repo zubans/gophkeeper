@@ -1,0 +1,41 @@
+# Build stage
+FROM golang:1.23-bookworm AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the client (CGO required for sqlite3)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential gcc libsqlite3-dev pkg-config \
+    && CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o gophkeeper-client ./cmd/client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Final stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /root/
+
+# Copy the binary from builder stage
+COPY --from=builder /app/gophkeeper-client .
+
+# Copy migration files
+COPY --from=builder /app/internal/client/migrations ./migrations
+
+# Create config directory
+RUN mkdir -p /root/.gophkeeper
+
+# Run the client
+ENV SERVER_URL=http://server:8080
+CMD ["./gophkeeper-client", "-server", "http://server:8080"]
