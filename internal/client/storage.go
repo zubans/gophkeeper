@@ -233,14 +233,29 @@ func (s *ClientStorage) DeleteData(id string) error {
 func (s *ClientStorage) GetLastSyncTime(userID string) (time.Time, error) {
 	query := `SELECT MAX(last_sync_at) FROM stored_data WHERE user_id = ?`
 
-	var lastSync sql.NullTime
-	err := s.db.QueryRow(query, userID).Scan(&lastSync)
+	var lastSyncStr sql.NullString
+	err := s.db.QueryRow(query, userID).Scan(&lastSyncStr)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to get last sync time: %w", err)
 	}
 
-	if lastSync.Valid {
-		return lastSync.Time, nil
+	if lastSyncStr.Valid && lastSyncStr.String != "" {
+		// Try different time formats
+		formats := []string{
+			time.RFC3339,
+			time.RFC3339Nano,
+			"2006-01-02 15:04:05.999999999-07:00",
+			"2006-01-02 15:04:05-07:00",
+			"2006-01-02 15:04:05",
+		}
+
+		for _, format := range formats {
+			if lastSync, err := time.Parse(format, lastSyncStr.String); err == nil {
+				return lastSync, nil
+			}
+		}
+
+		return time.Time{}, fmt.Errorf("failed to parse last sync time: %s", lastSyncStr.String)
 	}
 
 	return time.Time{}, nil

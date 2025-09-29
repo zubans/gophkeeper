@@ -8,6 +8,8 @@ import (
 	"gophkeeper/internal/crypto"
 	"gophkeeper/internal/database"
 	"gophkeeper/internal/models"
+
+	"github.com/google/uuid"
 )
 
 // AuthService handles user authentication and authorization.
@@ -106,7 +108,7 @@ func (a *AuthService) Login(req *models.UserLoginRequest) (*models.AuthResponse,
 	return response, nil
 }
 
-// generateID generates a unique ID.
+// generateID generates a unique UUID v4.
 func generateID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	return uuid.New().String()
 }

@@ -38,4 +38,4 @@ RUN mkdir -p /root/.gophkeeper
 
 # Run the client
 ENV SERVER_URL=http://server:8080
-CMD ["./gophkeeper-client", "-server", "http://server:8080"]
+ CMD ["./gophkeeper-client", "help"]

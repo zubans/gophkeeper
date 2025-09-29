@@ -14,6 +14,8 @@ import (
 
 	"gophkeeper/internal/crypto"
 	"gophkeeper/internal/models"
+
+	"github.com/google/uuid"
 )
 
 // Client represents the GophKeeper client.
@@ -28,7 +30,7 @@ type Client struct {
 }
 
 // NewClient creates a new client instance.
-func NewClient(serverURL, configDir string) (*Client, error) {
+func NewClient(serverURL, configDir, encryptionKey string) (*Client, error) {
 	// Create config directory if it doesn't exist
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
@@ -51,7 +53,7 @@ func NewClient(serverURL, configDir string) (*Client, error) {
 		serverURL:  serverURL,
 		configDir:  configDir,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
-		encryptor:  crypto.NewEncryptor("client-encryption-key"), // In production, this should be user-specific
+		encryptor:  crypto.NewEncryptor(encryptionKey),
 		storage:    storage,
 		token:      token,
 	}, nil
@@ -205,6 +207,20 @@ func (c *Client) ListData() error {
 	return nil
 }
 
+// GetDataList returns all user data as a slice.
+func (c *Client) GetDataList() ([]models.StoredData, error) {
+	if c.token == "" {
+		return nil, fmt.Errorf("not authenticated")
+	}
+
+	dataList, err := c.storage.GetAllData(c.userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get data: %w", err)
+	}
+
+	return dataList, nil
+}
+
 // GetData retrieves specific data by ID.
 func (c *Client) GetData(id string) error {
 	if c.token == "" {
@@ -352,9 +368,9 @@ func (c *Client) ShowHistory(id string) error {
 	return nil
 }
 
-// generateID generates a unique ID.
+// generateID generates a unique UUID v4.
 func generateID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	return uuid.New().String()
 }
 
 // encryptData encrypts the data field of StoredData.
@@ -420,7 +436,7 @@ func (c *Client) makeRequest(method, path string, body interface{}, result inter
 	if result != nil {
 		// Try wrapped APIResponse first
 		var wrap models.APIResponse
-		if err := json.Unmarshal(respBody, &wrap); err == nil && (wrap.Success || wrap.Error != "") {
+		if err := json.Unmarshal(respBody, &wrap); err == nil {
 			if !wrap.Success {
 				if wrap.Error != "" {
 					return fmt.Errorf("request failed: %s", wrap.Error)
@@ -428,17 +444,14 @@ func (c *Client) makeRequest(method, path string, body interface{}, result inter
 				return fmt.Errorf("request failed")
 			}
 			if wrap.Data != nil {
-				b, err := json.Marshal(wrap.Data)
+				// Convert data to JSON and unmarshal into result
+				dataBytes, err := json.Marshal(wrap.Data)
 				if err != nil {
 					return fmt.Errorf("failed to marshal wrapped data: %w", err)
 				}
-				if err := json.Unmarshal(b, result); err != nil {
+				if err := json.Unmarshal(dataBytes, result); err != nil {
 					return fmt.Errorf("failed to unmarshal wrapped data: %w", err)
 				}
-				return nil
-			}
-			// Success but no data: try to unmarshal whole body into result as fallback
-			if err := json.Unmarshal(respBody, result); err == nil {
 				return nil
 			}
 		}
