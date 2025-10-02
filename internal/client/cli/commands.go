@@ -1,14 +1,9 @@
 package cli
-
 import (
 	"fmt"
 	"regexp"
-
-	"gophkeeper/internal/client"
 	"gophkeeper/internal/models"
 )
-
-// ClientInterface defines the interface for client operations
 type ClientInterface interface {
 	Register(username, email, password string) error
 	Login(username, password string) error
@@ -20,21 +15,15 @@ type ClientInterface interface {
 	ListData() error
 	GetDataList() ([]models.StoredData, error)
 }
-
-// Command represents a CLI command that can execute directly.
 type Command interface {
-	Execute(client *client.Client) error
+	Execute(client ClientInterface) error
 }
-
-// RegisterCommand represents the register command.
 type RegisterCommand struct {
 	Username string
 	Email    string
 	Password string
 }
-
-func (c *RegisterCommand) Execute(client *client.Client) error {
-	// Validate inputs
+func (c *RegisterCommand) Execute(client ClientInterface) error {
 	if c.Username == "" {
 		return fmt.Errorf("username is required")
 	}
@@ -57,17 +46,13 @@ func (c *RegisterCommand) Execute(client *client.Client) error {
 	if len(c.Password) < 6 {
 		return fmt.Errorf("password must be at least 6 characters long")
 	}
-
 	return client.Register(c.Username, c.Email, c.Password)
 }
-
-// LoginCommand represents the login command.
 type LoginCommand struct {
 	Username string
 	Password string
 }
-
-func (c *LoginCommand) Execute(client *client.Client) error {
+func (c *LoginCommand) Execute(client ClientInterface) error {
 	if c.Username == "" {
 		return fmt.Errorf("username is required")
 	}
@@ -76,16 +61,12 @@ func (c *LoginCommand) Execute(client *client.Client) error {
 	}
 	return client.Login(c.Username, c.Password)
 }
-
-// AddCommand represents the add command.
 type AddCommand struct {
 	DataType string
 	Title    string
 	Data     []string
 }
-
-func (c *AddCommand) Execute(client *client.Client) error {
-	// Validate inputs
+func (c *AddCommand) Execute(client ClientInterface) error {
 	validTypes := map[string]bool{"login_password": true, "text": true, "binary": true, "bank_card": true}
 	if c.DataType == "" {
 		return fmt.Errorf("data type is required")
@@ -129,14 +110,10 @@ func (c *AddCommand) Execute(client *client.Client) error {
 			return fmt.Errorf("bank_card accepts at most: number, holder, expiry, cvv, metadata")
 		}
 	}
-
 	return client.AddData(c.DataType, c.Title, c.Data)
 }
-
-// GetCommand represents the get command.
 type GetCommand struct{ ID string }
-
-func (c *GetCommand) Execute(client *client.Client) error {
+func (c *GetCommand) Execute(client ClientInterface) error {
 	if c.ID == "" {
 		return fmt.Errorf("data ID is required")
 	}
@@ -145,11 +122,8 @@ func (c *GetCommand) Execute(client *client.Client) error {
 	}
 	return client.GetData(c.ID)
 }
-
-// DeleteCommand represents the delete command.
 type DeleteCommand struct{ ID string }
-
-func (c *DeleteCommand) Execute(client *client.Client) error {
+func (c *DeleteCommand) Execute(client ClientInterface) error {
 	if c.ID == "" {
 		return fmt.Errorf("data ID is required")
 	}
@@ -158,18 +132,12 @@ func (c *DeleteCommand) Execute(client *client.Client) error {
 	}
 	return client.DeleteData(c.ID)
 }
-
-// SyncCommand represents the sync command.
 type SyncCommand struct{}
-
-func (c *SyncCommand) Execute(client *client.Client) error {
+func (c *SyncCommand) Execute(client ClientInterface) error {
 	return client.SyncData()
 }
-
-// HistoryCommand represents the history command.
 type HistoryCommand struct{ ID string }
-
-func (c *HistoryCommand) Execute(client *client.Client) error {
+func (c *HistoryCommand) Execute(client ClientInterface) error {
 	if c.ID == "" {
 		return fmt.Errorf("data ID is required")
 	}
@@ -178,30 +146,20 @@ func (c *HistoryCommand) Execute(client *client.Client) error {
 	}
 	return client.ShowHistory(c.ID)
 }
-
-// ListCommand represents the list command.
 type ListCommand struct{}
-
-func (c *ListCommand) Execute(client *client.Client) error {
+func (c *ListCommand) Execute(client ClientInterface) error {
 	return client.ListData()
 }
-
-// Help and Version
 type HelpCommand struct{}
-
-func (c *HelpCommand) Execute(client *client.Client) error {
+func (c *HelpCommand) Execute(client ClientInterface) error {
 	ShowHelp()
 	return nil
 }
-
 type VersionCommand struct{}
-
-func (c *VersionCommand) Execute(client *client.Client) error {
+func (c *VersionCommand) Execute(client ClientInterface) error {
 	fmt.Println("GophKeeper Client")
 	return nil
 }
-
-// ParseCommand parses command line arguments into a Command struct.
 func ParseCommand(args []string) (Command, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("no command specified")
@@ -263,7 +221,6 @@ func ParseCommand(args []string) (Command, error) {
 		return nil, fmt.Errorf("unknown command: %s", command)
 	}
 }
-
 func ShowHelp() {
 	fmt.Println("GophKeeper - Secure Password Manager")
 	fmt.Println("")

@@ -60,3 +60,8 @@ ALTER TABLE data_history ADD CONSTRAINT data_history_data_id_fkey
 ALTER TABLE data_history ADD CONSTRAINT data_history_user_id_fkey 
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
+
+
+
+
+
