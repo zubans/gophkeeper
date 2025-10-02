@@ -216,11 +216,22 @@ func (s *ClientStorage) UpdateLastSyncTime(userID string, syncTime time.Time) er
 	return nil
 }
 func (s *ClientStorage) saveToHistory(tx *sql.Tx, data *models.StoredData) error {
+	historyID := fmt.Sprintf("%s_v%d", data.ID, data.Version)
+	
+	var existingID string
+	checkQuery := `SELECT id FROM data_history WHERE id = ?`
+	err := tx.QueryRow(checkQuery, historyID).Scan(&existingID)
+	if err == nil {
+		return nil
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check existing history: %w", err)
+	}
+	
 	query := `INSERT INTO data_history (id, data_id, user_id, type, title, data, metadata, version, created_at, updated_at, is_deleted) 
 			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	historyID := fmt.Sprintf("%s_v%d", data.ID, data.Version)
 	now := time.Now()
-	_, err := tx.Exec(query, historyID, data.ID, data.UserID, data.Type, data.Title, data.Data, data.Metadata, data.Version, now, now, data.IsDeleted)
+	_, err = tx.Exec(query, historyID, data.ID, data.UserID, data.Type, data.Title, data.Data, data.Metadata, data.Version, now, now, data.IsDeleted)
 	if err != nil {
 		return fmt.Errorf("failed to insert history: %w", err)
 	}

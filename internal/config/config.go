@@ -1,11 +1,14 @@
 package config
+
 import (
 	"flag"
 	"os"
 	"path/filepath"
 	"strconv"
+
 	"github.com/joho/godotenv"
 )
+
 type ServerConfig struct {
 	Port          string
 	DBHost        string
@@ -15,12 +18,17 @@ type ServerConfig struct {
 	DBName        string
 	JWTSecret     string
 	EncryptionKey string
+	LogLevel      string
+	LogFile       string
 }
 type ClientConfig struct {
 	ServerURL     string
 	ConfigDir     string
 	EncryptionKey string
+	LogLevel      string
+	LogFile       string
 }
+
 func LoadEnv() {
 	_ = godotenv.Load()
 }
@@ -33,7 +41,7 @@ func getenv(key, def string) string {
 func LoadServerConfig() ServerConfig {
 	LoadEnv()
 	return ServerConfig{
-		Port:          getenv("PORT", "8080"),
+		Port:          getenv("SERVER_PORT", "8080"),
 		DBHost:        getenv("DB_HOST", "localhost"),
 		DBPort:        getenv("DB_PORT", "5432"),
 		DBUser:        getenv("DB_USER", "gophkeeper"),
@@ -41,6 +49,8 @@ func LoadServerConfig() ServerConfig {
 		DBName:        getenv("DB_NAME", "gophkeeper"),
 		JWTSecret:     getenv("JWT_SECRET", "your-secret-key"),
 		EncryptionKey: getenv("ENCRYPTION_KEY", "your-encryption-key"),
+		LogLevel:      getenv("LOG_LEVEL", "INFO"),
+		LogFile:       getenv("LOG_FILE", "logs/app.log"),
 	}
 }
 func LoadServerConfigWithFlags() ServerConfig {
@@ -87,9 +97,11 @@ func LoadClientConfig() ClientConfig {
 	home, _ := os.UserHomeDir()
 	defaultDir := filepath.Join(home, ".gophkeeper")
 	return ClientConfig{
-		ServerURL:     getenv("SERVER_URL", "http://localhost:8080"),
+		ServerURL:     getenv("CLIENT_SERVER_URL", "http://localhost:8080"),
 		ConfigDir:     getenv("CLIENT_CONFIG_DIR", defaultDir),
 		EncryptionKey: getenv("ENCRYPTION_KEY", "your-encryption-key"),
+		LogLevel:      getenv("LOG_LEVEL", "INFO"),
+		LogFile:       getenv("LOG_FILE", "logs/client.log"),
 	}
 }
 func LoadClientConfigWithFlags() ClientConfig {

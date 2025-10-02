@@ -1,10 +1,7 @@
 .PHONY: build build-all test clean run-server run-client deps lint fmt
 
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=gophkeeper
-DB_PASSWORD=password
-DB_NAME=gophkeeper
+include .env
+export
 
 build:
 	go build -o bin/gophkeeper-server ./cmd/server
@@ -31,7 +28,7 @@ clean:
 	rm -f coverage.out coverage.html
 
 run-server:
-	go run ./cmd/server -db-host=$(DB_HOST) -db-port=$(DB_PORT) -db-user=$(DB_USER) -db-password=$(DB_PASSWORD) -db-name=$(DB_NAME)
+	go run ./cmd/server
 
 run-client:
 	go run ./cmd/client

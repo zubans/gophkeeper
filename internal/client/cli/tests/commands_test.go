@@ -15,3 +15,5 @@ func TestParseCommand(t *testing.T) {
 		t.Errorf("expected error for short username")
 	}
 }
+
+
